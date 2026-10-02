@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>KYIV OSINT RADAR v14.41.7</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+:root{--bg:#071018;--panel:rgba(12,23,32,.94);--text:#e8f0f5;--muted:#8fa5b2;--accent:#3b82f6;--danger:#dc2626;--ok:#35d07f;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;width:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#071018;color:var(--text);-webkit-tap-highlight-color:transparent}
+#app{position:absolute;inset:0;display:flex;flex-direction:column}
+.header{height:36px;background:rgba(7,16,24,.96);border-bottom:1px solid #1a2b36;display:flex;align-items:center;justify-content:space-between;padding:0 10px;padding-top:var(--safe-top);z-index:1000;backdrop-filter:blur(10px);flex:0 0 auto;font-size:11px}
+.logo{font-weight:800;letter-spacing:.8px;font-size:11px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.logo-icon{font-size:13px}
+.header-right{display:flex;align-items:center;gap:8px}
+.status{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--muted);font-weight:700;white-space:nowrap}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);transition:background .3s,box-shadow .3s}
+.status-dot.err{background:#ef4444;box-shadow:0 0 8px #ef4444}
+.status-dot.warn{background:#f59e0b;box-shadow:0 0 8px #f59e0b}
+.lang-btn-header{background:var(--panel);backdrop-filter:blur(12px);border:1px solid rgba(148,163,184,.28);color:#7dd3fc;padding:0;border-radius:8px;font-size:.9rem;line-height:1;cursor:pointer;font-weight:800;min-width:34px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;touch-action:manipulation;letter-spacing:.02em}
+.lang-btn-header:active{background:#1e3a5f}
+.lang-btn-header.en{color:#86efac}
+#map{flex:1;min-height:0;width:100%;background:#1e293b}
+.top-alert{position:absolute;top:calc(36px + var(--safe-top) + 6px);left:6px;right:6px;z-index:4600;border-radius:10px;overflow:hidden;display:none;box-shadow:0 6px 24px rgba(0,0,0,.5);backdrop-filter:blur(10px)}
+.top-alert.show{display:block;animation:alertIn .3s ease-out}
+@keyframes alertIn{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.top-alert.ballistic{background:linear-gradient(90deg,#7f1d1d,#dc2626,#7f1d1d);color:#fff;animation:bbPulse .6s ease-in-out infinite;border:1px solid #fca5a5}
+@keyframes bbPulse{0%,100%{background:linear-gradient(90deg,#7f1d1d,#dc2626,#7f1d1d)}50%{background:linear-gradient(90deg,#dc2626,#fca5a5,#dc2626)}}
+.top-alert.impact{background:linear-gradient(90deg,#7c2d12,#ea580c,#7c2d12);color:#fff;border:1px solid #fdba74}
+.top-alert.falling{background:linear-gradient(90deg,#78350f,#f59e0b,#78350f);color:#fff;border:1px solid #fcd34d}
+.top-alert.shot{background:linear-gradient(90deg,#14532d,#16a34a,#14532d);color:#fff;border:1px solid #86efac}
+.top-alert.fire{background:linear-gradient(90deg,#7c2d12,#f97316,#7c2d12);color:#fff;border:1px solid #fdba74}
+.top-alert.strategic{background:linear-gradient(90deg,#78350f,#facc15,#78350f);color:#1f2937;border:1px solid #fde047;animation:none}
+.top-alert.mass{background:linear-gradient(90deg,#4c1d95,#7c3aed,#4c1d95);color:#fff;border:1px solid #c4b5fd;animation:massPulse 1.2s ease-in-out infinite}
+@keyframes massPulse{0%,100%{background:linear-gradient(90deg,#4c1d95,#7c3aed,#4c1d95)}50%{background:linear-gradient(90deg,#7c3aed,#a78bfa,#7c3aed)}}
+.top-alert-inner{padding:9px 34px 9px 12px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:.86rem;line-height:1.25}
+.top-alert-icon{font-size:1.4rem;flex-shrink:0;line-height:1}
+.top-alert-body{flex:1;min-width:0}
+.top-alert-title{font-weight:800;font-size:.86rem;letter-spacing:.02em;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.top-alert-place{font-size:.78rem;font-weight:700;margin-top:2px;opacity:.95;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.top-alert-meta{font-size:.68rem;font-weight:700;opacity:.85;margin-top:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.top-alert-close{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.25);border:0;color:#fff;width:22px;height:22px;border-radius:50%;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;padding:0}
+.top-alert.strategic .top-alert-close{color:#1f2937;background:rgba(255,255,255,.4)}
+.top-alert-close:active{background:rgba(0,0,0,.5)}
+.strategic-panel{position:absolute;top:calc(36px + var(--safe-top) + 6px);left:6px;right:6px;z-index:4550;background:rgba(15,23,42,.95);border:1px solid rgba(250,204,21,.5);border-radius:10px;padding:8px 12px;display:none;box-shadow:0 6px 24px rgba(0,0,0,.5);backdrop-filter:blur(10px);font-size:.72rem;max-height:30vh;overflow-y:auto}
+.strategic-panel.show{display:block}
+.strategic-panel-title{font-weight:800;color:#facc15;margin-bottom:6px;font-size:.78rem;letter-spacing:.03em;display:flex;justify-content:space-between;align-items:center}
+.strategic-panel-close{background:0;border:0;color:#facc15;font-size:1.1rem;cursor:pointer;padding:0 4px;line-height:1}
+.strategic-panel-item{color:#e2e8f0;padding:3px 0;border-bottom:1px solid rgba(148,163,184,.15);display:flex;align-items:flex-start;gap:6px}
+.strategic-panel-item:last-child{border-bottom:0}
+.strategic-panel-item .s-ico{flex-shrink:0}
+.strategic-panel-item .s-text{flex:1;min-width:0}
+.strategic-panel-item .s-eta{color:#fbbf24;font-weight:700;font-size:.68rem}
+.strategic-panel-summary{color:#fca5a5;font-weight:800;margin-top:6px;padding-top:6px;border-top:1px solid rgba(220,38,38,.4);font-size:.7rem}
+.mass-banner{position:absolute;top:calc(36px + var(--safe-top) + 6px);left:6px;right:6px;z-index:4620;border-radius:10px;overflow:hidden;display:none;box-shadow:0 6px 24px rgba(0,0,0,.6);backdrop-filter:blur(10px);background:linear-gradient(135deg,#4c1d95,#7c3aed,#4c1d95);border:1px solid #c4b5fd;color:#fff}
+.mass-banner.show{display:block;animation:alertIn .3s ease-out}
+.mass-banner-inner{padding:10px 34px 10px 12px;display:flex;align-items:flex-start;gap:10px;font-weight:700;font-size:.8rem;line-height:1.35}
+.mass-banner-icon{font-size:1.5rem;flex-shrink:0;line-height:1}
+.mass-banner-body{flex:1;min-width:0}
+.mass-banner-title{font-weight:800;font-size:.86rem;letter-spacing:.02em}
+.mass-banner-line{font-size:.74rem;font-weight:700;margin-top:3px;opacity:.95}
+.mass-banner-line b{color:#fde047}
+.mass-banner-close{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.3);border:0;color:#fff;width:22px;height:22px;border-radius:50%;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;padding:0}
+.panel{position:absolute;left:6px;right:6px;bottom:calc(52px + var(--safe-bottom));background:var(--panel);border:1px solid #1f3540;border-radius:10px;overflow:hidden;z-index:900;backdrop-filter:blur(12px);display:flex;flex-direction:column;max-height:22vh;transition:max-height .2s ease}
+.panel.collapsed{max-height:34px}
+.panel-header{padding:7px 10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;height:34px;flex:0 0 34px}
+.panel-title{font-size:11px;font-weight:700;letter-spacing:.04em;display:flex;align-items:center;gap:5px}
+.panel-count{font-size:10px;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:4px}
+.panel-chev{font-size:.7rem;color:var(--muted);transition:transform .2s}
+.panel.collapsed .panel-chev{transform:rotate(-90deg)}
+.events{overflow-y:auto;flex:1;min-height:0}
+.event{padding:7px 10px;border-bottom:1px solid #132028;cursor:pointer;transition:background .12s}
+.event:hover{background:rgba(59,130,246,.08)}
+.event:last-child{border-bottom:0}
+.event-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.event-type{font-weight:700;font-size:11px;display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.event-icon{font-size:12px;line-height:1;flex-shrink:0}
+.event-prio{color:#fbbf24;font-size:11px;flex-shrink:0}
+.event-time{font-size:9px;color:var(--muted);flex-shrink:0;font-weight:700}
+.event-loc{margin-top:2px;font-size:10px;color:#b7c8d2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.event-meta{margin-top:3px;display:flex;gap:3px;flex-wrap:wrap}
+.tag{padding:1px 5px;border-radius:4px;background:#132630;color:#8faab8;font-size:8px;font-weight:700;line-height:1.4}
+.tag.prio{background:rgba(251,191,36,.25);color:#fbbf24}
+.tag.stage-launch{background:rgba(220,38,38,.3);color:#fecaca}
+.tag.stage-impact{background:rgba(220,38,38,.4);color:#fecaca}
+.tag.speed{background:rgba(59,130,246,.3);color:#93c5fd}
+.tag.sim{background:rgba(168,85,247,.3);color:#d8b4fe}
+.tag.strategic{background:rgba(250,204,21,.3);color:#fde047}
+.tag.mass{background:rgba(124,58,237,.4);color:#ddd6fe}
+.panel-empty{padding:14px 10px;text-align:center;color:var(--muted);font-size:10px}
+.hud-bottom{position:absolute;bottom:var(--safe-bottom);left:0;right:0;z-index:1000;padding:0 6px 4px;pointer-events:none}
+.hud-bottom>*{pointer-events:auto}
+.btn-row{display:flex;gap:4px;overflow-x:auto;padding:3px 0;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.btn-row::-webkit-scrollbar{display:none}
+button{background:var(--panel);backdrop-filter:blur(12px);border:1px solid rgba(148,163,184,.28);color:var(--text);padding:0;border-radius:8px;font-size:.9rem;line-height:1;cursor:pointer;font-weight:700;min-width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;touch-action:manipulation}
+button:active{background:#1e3a5f}
+button.danger{color:#fca5a5}
+button.map-toggle.on{background:rgba(37,99,235,.85);color:#fff}
+button.sound-btn.on{color:#4ade80}
+button.sound-btn.muted{color:#f87171}
+button.rings-btn.on{color:#60a5fa}
+button.rings-btn.off{color:#64748b}
+button.siren-btn{color:#f87171}
+button.siren-btn.active{background:#dc2626!important;color:#fff!important;animation:sirenFlash .35s ease-in-out infinite}
+button.strategic-btn.on{background:rgba(250,204,21,.9);color:#1f2937}
+button.infra-btn.on{background:rgba(34,197,94,.85);color:#fff}
+button.infra-btn.infrastructure{background:rgba(59,130,246,.85);color:#fff}
+button.infra-btn.energy{background:rgba(250,204,21,.9);color:#1f2937}
+button.infra-btn.incidents{background:rgba(220,38,38,.9);color:#fff}
+button.power-btn.on{background:rgba(250,204,21,.9);color:#1f2937}
+button.mass-btn.on{background:rgba(124,58,237,.9);color:#fff}
+@keyframes sirenFlash{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.8)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
+.dev-signature{position:absolute;bottom:calc(var(--safe-bottom) + 0px);left:0;right:0;text-align:center;font-size:16px;color:#5a6a78;font-weight:500;letter-spacing:.04em;pointer-events:none;z-index:999;font-family:ui-monospace,monospace;padding:2px 0}
+.leaflet-popup-content-wrapper{background:rgba(7,16,24,.97);color:#e8f0f5;border-radius:10px;border:1px solid rgba(148,163,184,.3);box-shadow:0 6px 24px rgba(0,0,0,.6)}
+.leaflet-popup-tip{background:rgba(7,16,24,.97)}
+.leaflet-popup-content{margin:9px 11px;font-size:.75rem;line-height:1.4;max-width:250px}
+.leaflet-popup-close-button{color:#94a3b8!important;font-size:18px!important;padding:2px 6px!important}
+.popup-title{font-weight:700;font-size:.82rem;margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.popup-meta{color:#94a3b8;font-size:.68rem}
+.type-uav{color:#f1f5f9}.type-missile,.type-ballistic{color:#f87171}.type-kab{color:#f87171}
+.type-fpv{color:#fbbf24}.type-recon{color:#7dd3fc}.type-mig31k{color:#fb7185}
+.type-jet_drone{color:#f87171}.type-strategic{color:#facc15;font-weight:800}
+.popup-guess{color:#fbbf24;font-size:.66rem;margin-top:4px}
+.popup-advisory{background:rgba(3,105,161,.35);color:#bae6fd;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.66rem;display:inline-block;margin-top:4px;border:1px solid rgba(125,211,252,.4)}
+.popup-area{background:rgba(71,85,105,.4);color:#cbd5e1;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.66rem;display:inline-block;margin-top:4px;border:1px solid rgba(148,163,184,.4)}
+.popup-infra{background:rgba(217,119,6,.35);color:#fcd34d;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.68rem;display:inline-block;margin-top:4px;border:1px solid rgba(251,191,36,.5);letter-spacing:.02em}
+.popup-chornobyl{background:rgba(168,85,247,.35);color:#e9d5ff;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.68rem;display:inline-block;margin-top:4px;border:1px solid rgba(216,180,254,.5)}
+.popup-alt{background:rgba(22,163,74,.25);color:#86efac;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.68rem;display:inline-block;margin-top:4px;border:1px solid rgba(134,239,172,.4)}
+.popup-channels{margin-top:6px;padding-top:5px;border-top:1px solid rgba(148,163,184,.18);font-size:.66rem}
+.popup-channels .ch{display:inline-block;background:rgba(148,163,184,.2);color:#cbd5e1;padding:1px 6px;border-radius:8px;margin:2px 2px 2px 0;border:1px solid rgba(148,163,184,.3)}
+.popup-channels .ch.trusted{background:rgba(22,163,74,.25);border-color:rgba(134,239,172,.4);color:#86efac}
+.popup-channels .ch.prio{background:rgba(251,191,36,.25);border-color:rgba(251,191,36,.5);color:#fbbf24}
+.popup-channels .ch.suspicious{background:rgba(220,38,38,.25);border-color:rgba(248,113,113,.4);color:#fca5a5}
+.popup-eta{background:rgba(220,38,38,.25);color:#fca5a5;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.68rem;display:inline-block;margin-top:4px;border:1px solid rgba(248,113,113,.4)}
+.popup-dist{background:rgba(59,130,246,.25);color:#93c5fd;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.68rem;display:inline-block;margin-top:4px;border:1px solid rgba(147,197,253,.4)}
+.popup-speed{background:rgba(234,88,12,.3);color:#fdba74;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.72rem;display:inline-block;margin-top:4px;border:1px solid rgba(253,186,116,.5);letter-spacing:.02em}
+.popup-sim{background:rgba(168,85,247,.3);color:#e9d5ff;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.66rem;display:inline-block;margin-top:4px;border:1px solid rgba(216,180,254,.5)}
+.popup-stale{background:rgba(217,119,6,.25);color:#fcd34d;padding:3px 6px;border-radius:5px;font-weight:700;font-size:.66rem;display:inline-block;margin-top:4px;border:1px solid rgba(251,191,36,.4)}
+.popup-exactname{background:rgba(220,38,38,.3);color:#fecaca;padding:3px 6px;border-radius:5px;font-weight:800;font-size:.72rem;display:inline-block;margin-top:4px;border:1px solid rgba(248,113,113,.5);letter-spacing:.02em}
+.popup-trail{margin-top:6px;padding:6px 8px;border-radius:5px;background:rgba(148,163,184,.12);border:1px dashed rgba(148,163,184,.5);font-size:.68rem;line-height:1.45;color:#cbd5e1}
+.popup-trail .pt-title{font-weight:700;color:#e2e8f0;margin-bottom:3px}
+.popup-trail .pt-point{display:flex;gap:5px;align-items:flex-start;margin:1px 0}
+.popup-trail .pt-num{flex-shrink:0;font-family:ui-monospace,monospace;color:#94a3b8;min-width:14px}
+.popup-trail .pt-place{flex:1;color:#e2e8f0}
+.popup-trail .pt-time{color:#94a3b8;font-size:.6rem;margin-left:3px}
+.popup-trail .pt-arrow{color:#fbbf24;font-weight:800}
+.popup-remove-btn{margin-top:8px;width:100%;height:30px;font-size:.75rem;background:rgba(220,38,38,.25);border:1px solid rgba(248,113,113,.5);color:#fca5a5;border-radius:6px;cursor:pointer;font-weight:800}
+.popup-remove-btn:active{background:rgba(220,38,38,.5)}
+.threat-wrap{position:relative;width:28px;height:28px}
+.threat-rotate{position:absolute;inset:0;transform-origin:center center;will-change:transform}
+.threat-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 5px rgba(0,0,0,.5));transform-origin:center center;position:relative;animation:pulse 1.8s ease-in-out infinite;transition:filter .3s ease}
+.threat-icon svg{width:24px;height:24px;display:block}
+@keyframes pulse{0%,100%{filter:drop-shadow(0 0 3px rgba(0,0,0,.5));opacity:1}50%{filter:drop-shadow(0 0 8px rgba(59,130,246,.55));opacity:.92}}
+.threat-icon.confirm-2{filter:drop-shadow(0 0 7px rgba(34,197,94,.9))}
+.threat-icon.confirm-3{filter:drop-shadow(0 0 10px rgba(250,204,21,.95));animation:cPulse 1.3s ease-in-out infinite}
+.threat-icon.confirm-5{filter:drop-shadow(0 0 14px rgba(250,204,21,1));animation:cPulse 1s ease-in-out infinite}
+@keyframes cPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.threat-icon.falling{animation:fallingBlink .55s ease-in-out infinite}
+@keyframes fallingBlink{0%,100%{filter:drop-shadow(0 0 2px rgba(220,38,38,.9));opacity:1}50%{filter:drop-shadow(0 0 12px rgba(220,38,38,1));opacity:.35}}
+.threat-icon.falling svg path,.threat-icon.falling svg polygon,.threat-icon.falling svg rect{fill:#dc2626!important;stroke:#7f1d1d!important}
+.threat-icon.stale{opacity:.55;filter:grayscale(.4)}
+.threat-icon.threat-pulse{animation:threatPulse 1s ease-in-out infinite}
+@keyframes threatPulse{0%,100%{filter:drop-shadow(0 0 3px rgba(220,38,38,.9));opacity:1}50%{filter:drop-shadow(0 0 12px rgba(220,38,38,1));opacity:.55}}
+.threat-icon.strat-pulse{animation:stratIconPulse 1.8s ease-in-out infinite}
+@keyframes stratIconPulse{0%,100%{filter:drop-shadow(0 0 4px rgba(234,88,12,.8));opacity:1}50%{filter:drop-shadow(0 0 14px rgba(234,88,12,1));opacity:.7}}
+.threat-icon.uav-siren{animation:uavSirenPulse .7s ease-in-out infinite}
+@keyframes uavSirenPulse{0%,100%{transform:scale(1);filter:drop-shadow(0 0 5px rgba(251,191,36,.95))}50%{transform:scale(1.18);filter:drop-shadow(0 0 16px rgba(251,191,36,1)) drop-shadow(0 0 5px rgba(220,38,38,.9))}}
+.threat-icon.ballistic-alarm{animation:ballisticAlarmPulse .5s ease-in-out infinite}
+@keyframes ballisticAlarmPulse{0%,100%{transform:scale(1);filter:drop-shadow(0 0 6px rgba(220,38,38,1))}50%{transform:scale(1.2);filter:drop-shadow(0 0 16px rgba(220,38,38,1));opacity:.75}}
+.threat-icon.priority-star::after{content:"⭐";position:absolute;top:-10px;left:-6px;font-size:11px;filter:drop-shadow(0 0 3px rgba(251,191,36,1))}
+.strat-wrap{position:relative}
+.strat-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 6px rgba(0,0,0,.6))}
+.strat-icon svg{width:28px;height:28px;display:block}
+.strat-icon.training{animation:stratTrain 2.5s ease-in-out infinite}
+.strat-icon.active{animation:stratActive 1.2s ease-in-out infinite}
+@keyframes stratTrain{0%,100%{opacity:.6;filter:drop-shadow(0 0 4px rgba(250,204,21,.7))}50%{opacity:1;filter:drop-shadow(0 0 12px rgba(250,204,21,1))}}
+@keyframes stratActive{0%,100%{filter:drop-shadow(0 0 6px rgba(250,204,21,.9))}50%{transform:scale(1.12);filter:drop-shadow(0 0 14px rgba(250,204,21,1))}}
+.strat-badge{position:absolute;right:-6px;top:-6px;height:14px;min-width:14px;padding:0 4px;border-radius:7px;background:#facc15;color:#1f2937;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;border:1px solid #fff}
+.strat-eta-badge{position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);background:rgba(250,204,21,.95);color:#1f2937;font-size:9px;font-weight:800;padding:1px 5px;border-radius:6px;white-space:nowrap;border:1px solid #fff}
+.count-badge{position:absolute;right:-6px;top:-6px;height:14px;min-width:14px;padding:0 4px;border-radius:7px;background:#ea580c;color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;border:1px solid #fff;z-index:5}
+.confirm-badge{position:absolute;left:-6px;top:-6px;height:13px;min-width:13px;padding:0 3px;border-radius:7px;background:#16a34a;color:#fff;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;border:1px solid #fff;z-index:5}
+.confirm-badge::before{content:"✓"}
+.confirm-badge.medium{background:#ca8a04}
+.confirm-badge.low{background:#dc2626}
+.confirm-badge.pending{background:#0ea5e9}
+.impact-marker-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;filter:drop-shadow(0 0 5px rgba(255,120,0,.95)) drop-shadow(0 0 2px rgba(220,38,38,1));animation:impactPop .9s ease-in-out infinite}
+@keyframes impactPop{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.18) rotate(6deg);opacity:.85}}
+.impact-marker{width:36px;height:36px;display:flex;align-items:center;justify-content:center;line-height:1;cursor:pointer}
+.impact-marker.hit{animation:impactHit 1s ease-in-out infinite;filter:drop-shadow(0 0 14px rgba(220,38,38,1))}
+.impact-marker.down{animation:impactDown 1.2s ease-in-out infinite}
+.impact-marker.shot{animation:impactShot 1.2s ease-in-out infinite;filter:drop-shadow(0 0 12px rgba(34,197,94,1))}
+.impact-marker.fire{animation:impactFire 1.1s ease-in-out infinite}
+.impact-marker.unknown{animation:impactUnknown 1.4s ease-in-out infinite}
+.impact-marker svg{width:32px;height:32px;display:block}
+@keyframes impactHit{0%,100%{transform:scale(1)}50%{transform:scale(1.25);opacity:.85}}
+@keyframes impactDown{0%,100%{transform:scale(1)}50%{transform:scale(1.15);opacity:.7}}
+@keyframes impactShot{0%,100%{transform:scale(1)}50%{transform:scale(1.18);opacity:.8}}
+@keyframes impactFire{0%,100%{transform:scale(1)}50%{transform:scale(1.22)}}
+@keyframes impactUnknown{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:.7}}
+.arrival-unknown{width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fbbf24;text-shadow:0 0 6px rgba(251,191,36,.9);animation:unknownPulse 1.2s ease-in-out infinite}
+@keyframes unknownPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:.7}}
+.err-banner{position:absolute;top:calc(36px + var(--safe-top));left:0;right:0;z-index:5000;background:#b91c1c;color:#fff;padding:8px 10px;font-size:.72rem;display:none}
+.err-banner.show{display:block}
+.err-banner b{font-weight:800}
+.err-banner .err-close{float:right;background:0;border:0;color:#fff;font-size:1.1rem;cursor:pointer;padding:0 4px;line-height:1}
+.toast{position:absolute;left:50%;top:calc(36px + var(--safe-top) + 60px);transform:translateX(-50%);z-index:2000;background:#1e293b;color:#f1f5f9;padding:7px 12px;border-radius:8px;border:1px solid rgba(148,163,184,.4);font-size:.72rem;box-shadow:0 6px 20px rgba(0,0,0,.4);opacity:0;transition:opacity .25s;pointer-events:none;max-width:85vw;text-align:center}
+.toast.show{opacity:1}
+.ai-badge{display:inline-block;font-size:9px;font-weight:800;padding:1px 6px;border-radius:5px;border:1px solid;margin-top:4px;letter-spacing:.02em;white-space:nowrap}
+.ai-modal-backdrop{position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:12px}
+.ai-modal-backdrop.show{display:flex}
+.ai-modal{background:rgba(15,23,42,.98);color:#e2e8f0;border:1px solid rgba(148,163,184,.3);border-radius:12px;max-width:460px;width:100%;max-height:80vh;overflow:hidden;display:flex;flex-direction:column}
+.ai-modal-header{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid rgba(148,163,184,.2)}
+.ai-modal-title{flex:1;font-weight:700;font-size:.88rem}
+.ai-modal-close{background:0;border:0;color:#94a3b8;font-size:1.4rem;cursor:pointer;padding:0 4px}
+.ai-modal-body{padding:11px 13px;overflow-y:auto;font-size:.82rem;line-height:1.5;white-space:pre-wrap}
+.ai-modal-footer{padding:9px 13px;border-top:1px solid rgba(148,163,184,.2);display:flex;justify-content:space-between;align-items:center;font-size:.66rem;color:#94a3b8;gap:6px;flex-wrap:wrap}
+.ai-modal-footer button{font-size:.72rem;padding:5px 10px;min-width:auto;height:auto}
+.alert-polygon{stroke-width:1.5;fill-opacity:.15}
+.leaflet-control-attribution{font-size:8px!important;background:rgba(7,16,24,.8)!important;color:#64748b!important;padding:2px 5px!important}
+.leaflet-control-zoom a{background:rgba(12,23,32,.9)!important;color:#e8f0f5!important;border-color:#1f3540!important;width:26px!important;height:26px!important;line-height:26px!important;font-size:14px!important}
+.settlement-marker{background:transparent;border:0}
+.settlement-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;border:1.5px solid #fff}
+.settlement-dot.city{background:#16a34a;width:11px;height:11px;border-width:2px}
+.settlement-dot.raion{background:#3b82f6;width:9px;height:9px}
+.infra-marker{background:transparent;border:0}
+.infra-bridge{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;filter:drop-shadow(0 0 4px rgba(96,165,250,.9))}
+.infra-energy{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;filter:drop-shadow(0 0 4px rgba(250,204,21,.9))}
+.infra-incident{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;filter:drop-shadow(0 0 5px rgba(220,38,38,.95));animation:incPulse 1.6s ease-in-out infinite}
+@keyframes incPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.infra-legend{position:absolute;bottom:calc(var(--safe-bottom) + 50px);right:6px;z-index:1050;background:rgba(7,16,24,.94);border:1px solid #1f3540;border-radius:8px;padding:6px 8px;font-size:9px;color:#cbd5e1;backdrop-filter:blur(10px);display:none;line-height:1.5}
+.infra-legend.show{display:block}
+.infra-legend b{color:#f1f5f9}
+.infra-legend .lg{display:flex;align-items:center;gap:4px;margin:1px 0}
+@media (min-width: 700px){
+  .panel{width:340px;left:6px;right:auto}
+  .top-alert{left:6px;right:auto;width:380px}
+  .strategic-panel{width:380px;right:auto}
+  .mass-banner{left:6px;right:auto;width:380px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="logo"><span class="logo-icon">🛡</span><span data-i18n="app.title">KYIV OSINT RADAR</span></div>
+    <div class="header-right">
+      <button type="button" class="lang-btn-header" id="btnLang" title="Мова / Language">UA</button>
+      <div class="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText" data-i18n="status.loading">ЗАГРУЗКА…</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="top-alert" id="topAlert">
+    <button class="top-alert-close" id="topAlertClose" aria-label="Закрыть">×</button>
+    <div class="top-alert-inner">
+      <div class="top-alert-icon" id="topAlertIcon">🚨</div>
+      <div class="top-alert-body">
+        <div class="top-alert-title" id="topAlertTitle">—</div>
+        <div class="top-alert-place" id="topAlertPlace" style="display:none">—</div>
+        <div class="top-alert-meta" id="topAlertMeta" style="display:none">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mass-banner" id="massBanner">
+    <button class="mass-banner-close" id="massBannerClose" aria-label="Закрыть">×</button>
+    <div class="mass-banner-inner">
+      <div class="mass-banner-icon" id="massBannerIcon">🚀</div>
+      <div class="mass-banner-body">
+        <div class="mass-banner-title" id="massBannerTitle" data-i18n="mass.title">МАСОВАНА ЗАГРОЗА</div>
+        <div class="mass-banner-line" id="massBannerLine1">—</div>
+        <div class="mass-banner-line" id="massBannerLine2" style="display:none">—</div>
+        <div class="mass-banner-line" id="massBannerLine3" style="display:none">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="strategic-panel" id="strategicPanel">
+    <div class="strategic-panel-title">
+      <span data-i18n="strategic.title">✈️ СТРАТЕГІЧНА АКТИВНІСТЬ</span>
+      <button class="strategic-panel-close" id="strategicPanelClose">×</button>
+    </div>
+    <div id="strategicPanelBody"></div>
+  </div>
+
+  <div class="err-banner" id="errBanner">
+    <button class="err-close" onclick="this.parentNode.classList.remove('show')">×</button>
+    <b data-i18n="err.label">Помилка:</b> <span id="errText">—</span>
+  </div>
+
+  <div class="panel collapsed" id="panel">
+    <div class="panel-header" id="panelHeader">
+      <div class="panel-title" data-i18n="panel.title">▶ ЛЕНТА ПОДІЙ</div>
+      <div class="panel-count">
+        <span id="eventCount" data-i18n="panel.count">0 подій</span>
+        <span class="panel-chev">▼</span>
+      </div>
+    </div>
+    <div class="events" id="events"></div>
+  </div>
+
+  <div class="hud-bottom">
+    <div class="btn-row">
+      <button type="button" id="btnRefresh" title="Оновити" data-i18n-title="btn.refresh">↻</button>
+      <button type="button" id="btnAIExplain" title="AI-зведення" data-i18n-title="btn.ai">🤖</button>
+      <button type="button" id="btnColorToggle" title="Колір БПЛА" data-i18n-title="btn.color">🎨</button>
+      <button type="button" class="rings-btn off" id="btnRingsToggle" title="Кільця" data-i18n-title="btn.rings">🎯</button>
+      <button type="button" class="settlements-btn" id="btnSettlements" title="Населені пункти" data-i18n-title="btn.settlements">🏘</button>
+      <button type="button" class="infra-btn" id="btnInfra" title="Інфраструктура" data-i18n-title="btn.infra">🏗</button>
+      <button type="button" class="power-btn" id="btnPower" title="Підстанції Києва" data-i18n-title="btn.power">⚡</button>
+      <button type="button" class="sound-btn on" id="soundToggle" title="Звук" data-i18n-title="btn.sound">🔔</button>
+      <button type="button" class="siren-btn" id="sirenBtn" title="Сирена" data-i18n-title="btn.siren">🚨</button>
+      <button type="button" class="strategic-btn" id="btnStrategic" title="Стратегічна авіація" data-i18n-title="btn.strategic">✈️</button>
+      <button type="button" class="mass-btn" id="btnMass" title="Масовані пуски" data-i18n-title="btn.mass">📡</button>
+      <button type="button" class="map-toggle" id="btnMapToggle" title="Схема/Супутник" data-i18n-title="btn.map">🛰</button>
+      <button type="button" id="btnClear" class="danger" title="Очистити" data-i18n-title="btn.clear">✕</button>
+    </div>
+  </div>
+
+  <div class="infra-legend" id="infraLegend">
+    <b data-i18n="legend.title">Інфраструктура:</b>
+    <div class="lg" data-i18n="legend.bridges">🌉 Мости / путепроводи / естакади</div>
+    <div class="lg" data-i18n="legend.energy">⚡ Енергооб'єкти (ТЕЦ, ТЕС, ГЕС, ПС)</div>
+    <div class="lg" data-i18n="legend.incidents">💥 Інциденти (БПЛА / КР / БР)</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="dev-signature" data-i18n="dev.signature">Розробник: А.Павленко 2026</div>
+
+  <div class="ai-modal-backdrop" id="aiModalBackdrop">
+    <div class="ai-modal">
+      <div class="ai-modal-header">
+        <span>🤖</span>
+        <span class="ai-modal-title" data-i18n="ai.title">Зведення · AI Lite</span>
+        <button class="ai-modal-close" id="aiModalClose">×</button>
+      </div>
+      <div class="ai-modal-body" id="aiModalBody">—</div>
+      <div class="ai-modal-footer">
+        <span id="aiModalTime">—</span>
+        <button type="button" id="aiModalCopy" data-i18n="ai.copy">📋 Копіювати</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/* ============================================================
+   v14.41.7 — I18N + конфиг + данные
+============================================================ */
+const $=id=>document.getElementById(id);
+const esc=s=>(s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function showErr(m){try{const b=$("errBanner"),t=$("errText");if(b&&t){t.textContent=String(m||"?");b.classList.add("show");}console.error("[kyiv-radar]",m);}catch(e){}}
+window.addEventListener("error",e=>showErr(e.message));
+window.addEventListener("unhandledrejection",e=>{try{showErr(e.reason?.message||String(e.reason));}catch(x){}});
+
+const I18N={
+  uk:{
+    "app.title":"KYIV OSINT RADAR","status.loading":"ЗАГРУЗКА…","status.online":"ONLINE","status.online.ws":"ONLINE · WS","status.offline":"ОФЛАЙН",
+    "panel.title":"▶ ЛЕНТА ПОДІЙ","panel.count":"0 подій","panel.empty":"Немає активних подій",
+    "strategic.title":"✈️ СТРАТЕГІЧНА АКТИВНІСТЬ","mass.title":"МАСОВАНА ЗАГРОЗА",
+    "mass.rockets":"🚀 ПУСКИ РЕАКТИВНИХ БПЛА","mass.ballistic":"🚀 ПІДВІЗ БАЛІСТИКИ","mass.shahed":"🛸 ДОСТАВКА ШАХЕДІВ","mass.wait":"📡 Очікування масових пусків…",
+    "err.label":"Помилка:","ai.title":"Зведення · AI Lite","ai.copy":"📋 Копіювати","ai.updated":"Оновлено: ",
+    "legend.title":"Інфраструктура:","legend.bridges":"🌉 Мости / путепроводи / естакади","legend.energy":"⚡ Енергооб'єкти (ТЕЦ, ТЕС, ГЕС, ПС)","legend.incidents":"💥 Інциденти (БПЛА / КР / БР)",
+    "dev.signature":"Розробник: А.Павленко 2026",
+    "btn.refresh":"Оновити","btn.ai":"AI-зведення","btn.color":"Колір БПЛА","btn.rings":"Кільця","btn.settlements":"Населені пункти","btn.infra":"Інфраструктура","btn.power":"Підстанції Києва","btn.sound":"Звук","btn.siren":"Сирена","btn.strategic":"Стратегічна авіація","btn.mass":"Масовані пуски","btn.map":"Схема/Супутник","btn.clear":"Очистити","btn.lang":"Мова",
+    "toast.refresh":"Оновлення…","toast.cleared":"Очищено","toast.sound.on":"🔔 увімк","toast.sound.off":"🔕 вимк","toast.sound.test":"🔔 тест","toast.siren1":"🚨 1× (2 тапи = 3×)","toast.siren3":"🚨 3× сирена",
+    "toast.uav.white":"🎨 БПЛА/FPV: Білий","toast.uav.orange":"🎨 БПЛА/FPV: Помаранч.","toast.uav.yellow":"🎨 БПЛА/FPV: Жовтий","toast.uav.black":"🎨 БПЛА/FPV: Чорний",
+    "toast.rings.on":"🎯 Кільця УВІМК","toast.rings.off":"🎯 Кільця ВИКЛ","toast.settlements.on":"🏘 Населені пункти УВІМК","toast.settlements.off":"🏘 Населені пункти ВИКЛ",
+    "toast.strategic.on":"✈️ Стратегічна авіація УВІМК","toast.strategic.off":"✈️ Стратегічна авіація ВИКЛ",
+    "toast.infra.off":"🏗 Інфраструктура: ВИКЛ","toast.infra.bridges":"🏗 Інфраструктура: Мости","toast.infra.energy":"🏗 Інфраструктура: Енергетика","toast.infra.incidents":"🏗 Інфраструктура: Інциденти","toast.infra.all":"🏗 Інфраструктура: Все",
+    "toast.power.on":"⚡ Підстанції Києва УВІМК","toast.power.off":"⚡ Підстанції Києва ВИКЛ","toast.map.sat":"🛰 Супутник","toast.map.osm":"🗺 Схема","toast.marker.removed":"🗑 Маркер видалено",
+    "alert.ballistic.title":"УВАГА! ЗАГРОЗА БАЛІСТИКИ","alert.ballistic.place":"Пуск / залп балістики або Циркон","alert.ballistic.meta":"НЕГАЙНО ПРЯМУЙТЕ ДО УКРИТТЯ!",
+    "alert.impact.title":"💥 ВИБУХ / ПРИЛІТ","alert.falling.title":"🛬 ПАДІННЯ / ЗНИЖЕННЯ","alert.debris.title":"🛬 ПАДІННЯ УЛАМКІВ","alert.shot.title":"🛡️ ЗБИТТЯ / ПЕРЕХОПЛЕННЯ","alert.fire.title":"🔥 ПОЖЕЖА",
+    "type.uav":"БПЛА","type.recon":"Розв","type.geran2":"Герань-2","type.geran3":"Герань-3","type.geran4":"Герань-4","type.geran5":"Герань-5","type.jet_drone":"Реакт. БПЛА","type.fpv":"FPV","type.missile":"КР","type.ballistic":"Бал","type.banderol":"S8000","type.kab":"КАБ","type.umpb":"УМПБ-5","type.mig31k":"МиГ-31К","type.strategic_aviation":"Стратег","type.zircon":"Циркон","type.unknown":"?","type.launcher":"Пускова","type.impact":"Вибух","type.strategic":"Стратегічна авіація","type.mass":"МАСОВАНА АКТИВНІСТЬ",
+    "popup.sources":"Джерела","popup.route":"📍 Маршрут:","popup.remove":"🗑 Видалити маркер","popup.speed":"⚡ Швидкість","popup.eta":"⏱ Підліт","popup.dist":"📏","popup.alt":"📍 Висота","popup.stale":"⌛ Дані старші","popup.min":"хв","popup.km":"км","popup.kmh":"км/год","popup.approx":"⚠ Позиція приблизна","popup.infra":"🏭 Об'єкт критичної інфраструктури","popup.chornobyl":"☢️ Чорнобильська зона","popup.priority":"⭐ ПРИОРИТЕТНЕ ДЖЕРЕЛО","popup.reached":"🎯 Досягла цілі","popup.trajectory":"Траєкторія","popup.points":"точок","popup.channels":"Джерела","popup.count":"Бортів","popup.confirm":"Підтверджень","popup.updated":"Оновлено","popup.place":"Місце","popup.time":"Час","popup.impact.unknown":"❓ Точка прильоту невідома","popup.impact.approx":"Приблизно","popup.impact.arrival":"Приліт","popup.strat.airport":"Аеродром","popup.strat.status":"Статус","popup.strat.combat":"🔴 Бойова активність","popup.strat.training":"🟡 Тренування","popup.strat.dist":"Відстань до Києва","popup.strat.eta":"Підліт","popup.launch":"ПУСК","popup.threat":"ЗАГРОЗА","popup.mig.takeoff":"МиГ-31К · зліт","popup.observation":"Спостереження","popup.area":"≈ Точка не вказана","popup.advisory":"ℹ Спостереження","popup.trail":"📍 Маршрут:","popup.calc.eta":"Підліт","popup.stale.data":"Дані старші",
+    "feed.mass":"📡 МАСОВАНЕ","feed.strategic":"✈️ Стратег","feed.warning":"⚠️","feed.impact":"💥","feed.launch":"ЗАГРОЗА","feed.arrival":"ПРИЛІТ",
+    "ai.active.ballistic":"🚨 АКТИВНА ТРИВОГА БАЛІСТИКИ","ai.ago":"хв тому","ai.strat":"✈️ СТРАТЕГІЧНА АКТИВНІСТЬ:","ai.kyiv.alert":"🔴 Київ: ПОВІТРЯНА ТРИВОГА","ai.obl.alert":"🟠 Київська обл.: повітряна тривога","ai.no.alert":"🟢 Офіційної тривоги немає","ai.no.data":"ℹ Немає даних про тривоги","ai.warnings":"⚠️ Попереджень:","ai.mass":"📡 МАСОВАНА АКТИВНІСТЬ:","ai.chains":"🧩 Ланцюжків","ai.impacts":"💥 Вибухів за 30 хв","ai.settlements":"🏘 Населені пункти","ai.strategic":"✈️ Стратегічних","ai.bridges":"🌉 Мостів","ai.energy":"⚡ Енергооб'єктів","ai.power":"🔌 Підстанцій","ai.incidents":"💥 Інцидентів у базі","ai.training":"тренування","ai.salvo":"🎯 Можливий залп","ai.rockets":"ракет",
+    "mass.pusk":"Напрямок","mass.iskander.kursk":"📍 <b>Курська обл.</b> — Іскандер-М","mass.iskander.bryansk":"📍 <b>Брянська обл.</b> — Іскандер-М","mass.kn23.voronezh":"📍 <b>Воронезька обл.</b> — KN-23","mass.airfield":"🛫"
+  },
+  en:{
+    "app.title":"KYIV OSINT RADAR","status.loading":"LOADING…","status.online":"ONLINE","status.online.ws":"ONLINE · WS","status.offline":"OFFLINE",
+    "panel.title":"▶ EVENT FEED","panel.count":"0 events","panel.empty":"No active events",
+    "strategic.title":"✈️ STRATEGIC ACTIVITY","mass.title":"MASSIVE THREAT",
+    "mass.rockets":"🚀 JET DRONE LAUNCHES","mass.ballistic":"🚀 BALLISTIC DELIVERY","mass.shahed":"🛸 SHAHED DELIVERY","mass.wait":"📡 Waiting for mass launches…",
+    "err.label":"Error:","ai.title":"Summary · AI Lite","ai.copy":"📋 Copy","ai.updated":"Updated: ",
+    "legend.title":"Infrastructure:","legend.bridges":"🌉 Bridges / overpasses / viaducts","legend.energy":"⚡ Energy facilities (CHP, TPP, HPP, SS)","legend.incidents":"💥 Incidents (UAV / CM / BM)",
+    "dev.signature":"Developer: A.Pavlenko 2026",
+    "btn.refresh":"Refresh","btn.ai":"AI summary","btn.color":"UAV color","btn.rings":"Rings","btn.settlements":"Settlements","btn.infra":"Infrastructure","btn.power":"Kyiv substations","btn.sound":"Sound","btn.siren":"Siren","btn.strategic":"Strategic aviation","btn.mass":"Mass launches","btn.map":"Map/Satellite","btn.clear":"Clear","btn.lang":"Language",
+    "toast.refresh":"Refreshing…","toast.cleared":"Cleared","toast.sound.on":"🔔 on","toast.sound.off":"🔕 off","toast.sound.test":"🔔 test","toast.siren1":"🚨 1× (2 taps = 3×)","toast.siren3":"🚨 3× siren",
+    "toast.uav.white":"🎨 UAV/FPV: White","toast.uav.orange":"🎨 UAV/FPV: Orange","toast.uav.yellow":"🎨 UAV/FPV: Yellow","toast.uav.black":"🎨 UAV/FPV: Black",
+    "toast.rings.on":"🎯 Rings ON","toast.rings.off":"🎯 Rings OFF","toast.settlements.on":"🏘 Settlements ON","toast.settlements.off":"🏘 Settlements OFF",
+    "toast.strategic.on":"✈️ Strategic aviation ON","toast.strategic.off":"✈️ Strategic aviation OFF",
+    "toast.infra.off":"🏗 Infrastructure: OFF","toast.infra.bridges":"🏗 Infrastructure: Bridges","toast.infra.energy":"🏗 Infrastructure: Energy","toast.infra.incidents":"🏗 Infrastructure: Incidents","toast.infra.all":"🏗 Infrastructure: All",
+    "toast.power.on":"⚡ Kyiv substations ON","toast.power.off":"⚡ Kyiv substations OFF","toast.map.sat":"🛰 Satellite","toast.map.osm":"🗺 Scheme","toast.marker.removed":"🗑 Marker removed",
+    "alert.ballistic.title":"ATTENTION! BALLISTIC THREAT","alert.ballistic.place":"Ballistic launch / salvo or Zircon","alert.ballistic.meta":"PROCEED TO SHELTER IMMEDIATELY!",
+    "alert.impact.title":"💥 EXPLOSION / IMPACT","alert.falling.title":"🛬 FALLING / DESCENT","alert.debris.title":"🛬 DEBRIS FALLING","alert.shot.title":"🛡️ SHOOTDOWN / INTERCEPT","alert.fire.title":"🔥 FIRE",
+    "type.uav":"UAV","type.recon":"Recon","type.geran2":"Geran-2","type.geran3":"Geran-3","type.geran4":"Geran-4","type.geran5":"Geran-5","type.jet_drone":"Jet drone","type.fpv":"FPV","type.missile":"CM","type.ballistic":"BM","type.banderol":"S8000","type.kab":"KAB","type.umpb":"UMPB-5","type.mig31k":"MiG-31K","type.strategic_aviation":"Strategic","type.zircon":"Zircon","type.unknown":"?","type.launcher":"Launcher","type.impact":"Impact","type.strategic":"Strategic aviation","type.mass":"MASS ACTIVITY",
+    "popup.sources":"Sources","popup.route":"📍 Route:","popup.remove":"🗑 Remove marker","popup.speed":"⚡ Speed","popup.eta":"⏱ ETA","popup.dist":"📏","popup.alt":"📍 Altitude","popup.stale":"⌛ Data older than","popup.min":"min","popup.km":"km","popup.kmh":"km/h","popup.approx":"⚠ Approximate position","popup.infra":"🏭 Critical infrastructure object","popup.chornobyl":"☢️ Chernobyl zone","popup.priority":"⭐ PRIORITY SOURCE","popup.reached":"🎯 Target reached","popup.trajectory":"Trajectory","popup.points":"points","popup.channels":"Sources","popup.count":"Aircraft","popup.confirm":"Confirmations","popup.updated":"Updated","popup.place":"Place","popup.time":"Time","popup.impact.unknown":"❓ Impact point unknown","popup.impact.approx":"Approximately","popup.impact.arrival":"Impact","popup.strat.airport":"Airfield","popup.strat.status":"Status","popup.strat.combat":"🔴 Combat activity","popup.strat.training":"🟡 Training","popup.strat.dist":"Distance to Kyiv","popup.strat.eta":"ETA","popup.launch":"LAUNCH","popup.threat":"THREAT","popup.mig.takeoff":"MiG-31K · takeoff","popup.observation":"Observation","popup.area":"≈ Point not specified","popup.advisory":"ℹ Observation","popup.trail":"📍 Route:","popup.calc.eta":"ETA","popup.stale.data":"Data older than",
+    "feed.mass":"📡 MASS","feed.strategic":"✈️ Strategic","feed.warning":"⚠️","feed.impact":"💥","feed.launch":"THREAT","feed.arrival":"IMPACT",
+    "ai.active.ballistic":"🚨 ACTIVE BALLISTIC ALERT","ai.ago":"min ago","ai.strat":"✈️ STRATEGIC ACTIVITY:","ai.kyiv.alert":"🔴 Kyiv: AIR ALERT","ai.obl.alert":"🟠 Kyiv Oblast: air alert","ai.no.alert":"🟢 No official alert","ai.no.data":"ℹ No alert data","ai.warnings":"⚠️ Warnings:","ai.mass":"📡 MASS ACTIVITY:","ai.chains":"🧩 Chains","ai.impacts":"💥 Impacts in 30 min","ai.settlements":"🏘 Settlements","ai.strategic":"✈️ Strategic","ai.bridges":"🌉 Bridges","ai.energy":"⚡ Energy facilities","ai.power":"🔌 Substations","ai.incidents":"💥 Incidents in DB","ai.training":"training","ai.salvo":"🎯 Possible salvo","ai.rockets":"rockets",
+    "mass.pusk":"Direction","mass.iskander.kursk":"📍 <b>Kursk Oblast</b> — Iskander-M","mass.iskander.bryansk":"📍 <b>Bryansk Oblast</b> — Iskander-M","mass.kn23.voronezh":"📍 <b>Voronezh Oblast</b> — KN-23","mass.airfield":"🛫"
+  }
+};
+const LANG_KEY="kyiv_lang_v1";
+let currentLang="uk";
+function detectLang(){try{const v=localStorage.getItem(LANG_KEY);if(v==="uk"||v==="en")return v;}catch(e){}const nav=(navigator.language||"uk").toLowerCase();return nav.startsWith("en")?"en":"uk";}
+function t(key,params){const dict=I18N[currentLang]||I18N.uk;let s=dict[key];if(s==null)s=(I18N.uk[key]!=null?I18N.uk[key]:key);if(params){for(const k of Object.keys(params))s=s.replace(new RegExp("\\{"+k+"\\}","g"),params[k]);}return s;}
+function applyLang(){document.documentElement.lang=currentLang;document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.getAttribute("data-i18n");const v=t(k);if(v!=null)el.textContent=v;});document.querySelectorAll("[data-i18n-title]").forEach(el=>{const k=el.getAttribute("data-i18n-title");const v=t(k);if(v!=null)el.setAttribute("title",v);});const b=$("btnLang");if(b){b.textContent=currentLang==="uk"?"UA":"EN";b.classList.toggle("en",currentLang==="en");}try{localStorage.setItem(LANG_KEY,currentLang);}catch(e){}try{scheduleFeedUpdate();}catch(e){}try{rebuildStrategicPanel();}catch(e){}}
+function toggleLang(){currentLang=(currentLang==="uk")?"en":"uk";applyLang();try{showToast(currentLang==="uk"?"🌐 Мова: Українська":"🌐 Language: English",1600);}catch(e){}}
+currentLang=detectLang();
+
+/* ============================================================
+   ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+============================================================ */
+let lastBallisticAlarmAt=0,topAlertTimer=null,topAlertLastKind=null,lastAlerts=null,alertLayers=[];
+let ws=null,wsConnected=false,wsReconnectMs=3000,wsReconnectTimer=null;
+let restFallbackActive=false,pollTimer=null,abortCtrl=null;
+let rafId=null,animRunning=false,map=null,osmLayer=null,currentBase="osm";
+let ringsLayer=null,ringsVisible=false,settlementsVisible=false,strategicVisible=false,infraMode=0;
+let powerLayer=null,powerVisible=false,highPrecisionOnly=false,uavColorIdx=0;
+let audioCtx=null,lastSoundAt=0,keepAliveInterval=null,sirenActiveTimeout=null;
+let feedUpdateTimer=null,settlementMarkers=[],infraMarkers=[];
+let massBannerTimer=null,massBannerActive=false;
+
+const CONFIG={
+  API_THREATS:"https://neptun.in.ua/api/v1/threats",API_ALERTS:"https://neptun.in.ua/api/v1/alerts",API_MESSAGES:"https://neptun.in.ua/api/v1/messages",WS_URL:"wss://neptun.in.ua/api/v1/stream",
+  POLL_MS:5000,WS_RECONNECT_MS:3000,WS_RECONNECT_MAX_MS:60000,
+  KYIV:[50.45,30.52],ZONE_RADIUS_KM:250,KYIV_OBLAST_RADIUS_KM:120,KYIV_OBLAST_CENTER:[50.45,30.52],
+  STALE_MSG_MS:5*60*1000,IMPACT_TTL_MS:30*60*1000,IMPACT_REPORT_TTL_MS:30*60*1000,
+  LAUNCHER_SOLO_TTL_MS:5*60*1000,MIN_CHANNELS_CONFIRM:2,
+  EXTRAPOLATION_HOURS:0.4,STALE_VISUAL_AFTER_HOURS:0.5,
+  MIG_SHOW_OUTSIDE_ZONE:true,STRAT_SHOW_OUTSIDE_ZONE:true,
+  TRAIL_MIN_ORIGIN_DIST_KM:30,UNCERTAIN_KM:15,
+  SIM_START_MIN_DIST_KM:30,SIM_START_DISTANCE_KM:320,
+  SIM_DISPLAY_TIME_FACTOR:0.75,SIM_MIN_DISPLAY_SECONDS:15,
+  SIM_DEFAULT_ORIGIN:{lat:51.73,lon:36.19,name:"Курськ"},
+  TILE_URL:"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  TILE_URL_SAT:"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  TILE_URL_SAT_REF:"https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+  TILE_ATTR:'&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+  TILE_ATTR_SAT:"Tiles &copy; Esri",APPROACH_OFFSET_KM:20,
+  FALLBACK_SPEED:{uav:180,recon:120,fpv:80,geran2:180,geran3:190,geran4:200,geran5:220,jet_drone:800,missile:900,ballistic:2100,banderol:700,kab:400,umpb:500,mig31k:900,awacs:700,strategic_aviation:800,unknown:150,zircon:2500},
+  SPEED_BY_HINT:{"герань-2":180,"герань-3":190,"герань-4":200,"герань-5":220,"реактивн":800,"шахед":180,"герань":180,"циркон":2500,"кинжал":12000,"искандер":2100,"калибр":890,"х-101":900,"х-555":900,"х-59":1050,"с-300":4200,"с-400":4800,"кн-23":2100,"оникс":3000,"s-8000":700,"бандероль":700,"умпб":500,"развед":130,"розвід":130,"fpv":100,"фпв":100},
+  ALTITUDE_CHANNELS:["chyste_nebo","chistenebo","чистенебо"],
+  SOUND_ENABLED:true,SOUND_NEAR_KM:25,SOUND_NEAR_KM_ROCKET:35,
+  SOUND_NEAR_WINDOW_MS:10000,SOUND_NEAR_WINDOW_MS_ROCKET:5000,SOUND_COOLDOWN_MS:4000,
+  SOUND_TYPE_FILTER:new Set(["uav","recon","geran5","missile","ballistic","banderol","jet_drone","kab","umpb","zircon","geran2","geran3","geran4"]),
+  ROCKET_TYPES:new Set(["missile","ballistic","banderol","jet_drone","kab","umpb","zircon"]),
+  ROCKET_ONLY_KYIV_OBLAST:false,
+  ROCKET_WARNING_TYPES:new Set(["missile","ballistic","banderol","jet_drone","kab","umpb","zircon"]),
+  TRAIL_MAX_AGE_MS:30*60*1000,TRAIL_MAX_GAP_KM:35,TRAIL_MAX_POINTS:12,
+  TRAIL_COLOR:"#dc2626",TRAIL_LINE_WIDTH:2,
+  BALLISTIC_SIREN_COOLDOWN_MS:2*60*1000,SMOOTH_ALPHA:0.4,
+  ARRIVAL_UNKNOWN_TTL_MS:3*60*1000,ARRIVAL_IMPACT_TTL_MS:60*1000,BALLISTIC_ARRIVAL_TTL_MS:60*1000,
+  HIGH_PREC_MIN_CONFIRM:2,
+  POPUP_OPTS:{maxWidth:280,maxHeight:300,autoPan:false,autoClose:true,closeOnClick:true,closeButton:true},
+  TOP_ALERT_TTL_MS:30*1000,TOP_ALERT_BALLISTIC_TTL_MS:60*1000,TOP_ALERT_STRATEGIC_TTL_MS:10*60*1000,
+  DEFAULT_LOCATION:{name:"Київ",lat:50.4501,lng:30.5234},
+  WARNING_GRACE_MS:10*60*1000,DISMISS_TTL_MS:30*60*1000,
+  CHAIN_TRANSITION_MS_PER_KM:500,CHAIN_TRANSITION_MIN_MS:800,CHAIN_TRANSITION_MAX_MS:5000,
+  STRATEGIC_ACTIVITY_TTL_MS:30*60*1000,STRATEGIC_LAYER_MIN_ZOOM:4,MASS_BANNER_TTL_MS:15*60*1000
+};
+const OBSERVATION_TYPES=new Set(["banderol","jet_drone"]);
+const PRIORITY_CHANNELS=new Set(["kyiv_monitor1","ppo_kiev","kiev_tryvoha","ukrainemonitorzagroz","ukraine_ua_24_7"]);
+const PRIORITY_WEIGHT=3.0;
+const RINGS_KEY="kyiv_rings_v41",SETTLEMENTS_VIS_KEY="kyiv_settlements_v41",STRATEGIC_VIS_KEY="kyiv_strategic_v41";
+const INFRA_MODE_KEY="kyiv_infra_mode_v41",POWER_VIS_KEY="kyiv_power_vis_v1",MASS_VIS_KEY="kyiv_mass_vis_v1";
+const UAV_COLORS=[{id:"white",name:"Білий",hex:"#ffffff"},{id:"orange",name:"Помаранч.",hex:"#fb923c"},{id:"yellow",name:"Жовтий",hex:"#facc15"},{id:"black",name:"Чорний",hex:"#1f2937"}];
+try{const v=localStorage.getItem("kyiv_uav_c_v41");if(v!=null){const i=+v;if(i>=0&&i<4)uavColorIdx=i;}}catch(e){}
+try{const v=localStorage.getItem(RINGS_KEY);if(v==="1")ringsVisible=true;}catch(e){}
+try{const v=localStorage.getItem(SETTLEMENTS_VIS_KEY);if(v==="1")settlementsVisible=true;}catch(e){}
+try{const v=localStorage.getItem(STRATEGIC_VIS_KEY);if(v==="1")strategicVisible=true;}catch(e){}
+try{const v=localStorage.getItem(INFRA_MODE_KEY);if(v!=null){const i=+v;if(i>=0&&i<=4)infraMode=i;}}catch(e){}
+try{const v=localStorage.getItem(POWER_VIS_KEY);if(v==="1")powerVisible=true;}catch(e){}
+function isPriorityChannel(ch){const k=(ch||"").replace(/^@/,"").toLowerCase().trim();if(PRIORITY_CHANNELS.has(k))return true;for(const p of PRIORITY_CHANNELS)if(k.includes(p))return true;return false;}
+function saveUavColor(){try{localStorage.setItem("kyiv_uav_c_v41",String(uavColorIdx));}catch(e){}}
+function currentUavColor(){return UAV_COLORS[uavColorIdx].hex;}
+
+const powerSubstations=[
+  ["ПС 750 кВ «Київська»",50.490836,29.688768,"750","Макарівський р-н","НТСЕУ"],
+  ["ПС 330 кВ «Північна»",50.61313,30.38222,"330","Нові Петрівці","Mapcarta"],
+  ["ПС 330 кВ «Новокиївська»",50.380,30.470,"330","Хотів","Prozorro"],
+  ["ПС 330 кВ «Нивки»",50.476,30.410,"330","Шевченківський","КМДА"],
+  ["ПС 330 кВ «Броварська»",50.538,30.899,"330","Красилівка","Prozorro"],
+  ["ПС 110 кВ «Пріорська»",50.509,30.424,"110","Виноградар","Wikimapia"],
+  ["ПС 110 кВ «Біличі»",50.472,30.330,"110","Біличі","Wikimapia"],
+  ["ПС 110 кВ «Берковецька»",50.495,30.359,"110","Берковець","DTEK"],
+  ["ПС 110 кВ «Московська»",50.430,30.520,"110","Голосіївський","DTEK"],
+  ["ПС 110 кВ «Олімпійська»",50.433,30.520,"110","Печерський","KEBK"],
+  ["ПС 110 кВ «Осокорки»",50.395,30.620,"110","Осокорки","DTEK"],
+  ["ПС 110 кВ «Поливка»",50.400,30.630,"110","Позняки","DTEK"],
+  ["ПС 110 кВ «Соломенська»",50.430,30.480,"110","Солом'янський","DTEK"],
+  ["ПС 110 кВ «Протеїнська»",50.425,30.500,"110","Солом'янський","DTEK"]
+];
+
+const KYIV_OBLAST_SETTLEMENTS=[
+["Прип'ять",51.39474302,30.08446583,"Чорнобильська зона","c"],["Чорнобиль",51.27184786,30.22441931,"Чорнобильська зона","c"],
+["Біла Церква",49.80563193,30.10926837,"Білоцерківський","c"],["Терезине",49.85733315,30.10862037,"Білоцерківський","s"],
+["Володарка",49.52395189,29.91275973,"Білоцерківський","s"],["Гребінки",49.95584068,30.17515067,"Білоцерківський","s"],
+["Дослідницьке",49.92288588,30.14679318,"Білоцерківський","s"],["Рокитне",49.68965541,30.47630798,"Білоцерківський","s"],
+["Сквира",49.73079435,29.66402976,"Білоцерківський","c"],["Ставище",49.39130103,30.1882012,"Білоцерківський","s"],
+["Тараща",49.56066626,30.49540089,"Білоцерківський","c"],["Тетіїв",49.37317715,29.67843897,"Білоцерківський","c"],
+["Узин",49.82016789,30.42185138,"Білоцерківський","c"],["Бориспіль",50.3612042,30.95256256,"Бориспільський","c"],
+["Вороньків",50.21625067,30.90331307,"Бориспільський","v"],["Гора",50.37066577,30.85528315,"Бориспільський","v"],
+["Дівички",50.06469374,31.269951,"Бориспільський","v"],["Гнідин",50.32833684,30.70668059,"Бориспільський","v"],
+["Переяслав",50.07228667,31.45321568,"Бориспільський","c"],["Щасливе",50.37445736,30.78656938,"Бориспільський","v"],
+["Студеники",50.20663801,31.61268373,"Бориспільський","v"],["Ташань",50.04578143,31.84206273,"Бориспільський","v"],
+["Циблі",50.00098357,31.55433719,"Бориспільський","v"],["Яготин",50.24025082,31.79157062,"Бориспільський","c"],
+["Баришівка",50.35755065,31.31698645,"Броварський","s"],["Березань",50.31236212,31.47751805,"Броварський","c"],
+["Бровари",50.50655438,30.80095343,"Броварський","c"],["Княжичі",50.45746644,30.78451038,"Броварський","v"],
+["Сотницьке",50.47801695,30.95607335,"Броварський","v"],["Требухів",50.48370528,30.90574211,"Броварський","v"],
+["Велика Димерка",50.5946841,30.91175229,"Броварський","s"],["Зазим'я",50.56848729,30.6735435,"Броварський","v"],
+["Згурівка",50.49685669,31.78529495,"Броварський","s"],["Калинівка",50.56371446,30.82346993,"Броварський","s"],
+["Калита",50.7529556,31.02528852,"Броварський","s"],["Білогородка",50.38342226,30.25516463,"Бучанський","v"],
+["Бородянка",50.64695206,29.93221968,"Бучанський","s"],["Петропавлівська Борщагівка",50.43191108,30.33371091,"Бучанський","v"],
+["Софіївська Борщагівка",50.41289245,30.36447623,"Бучанський","v"],["Чайки",50.43729993,30.28713401,"Бучанський","v"],
+["Буча",50.55148938,30.21142382,"Бучанський","c"],["Бабинці",50.63841294,30.02560464,"Бучанський","s"],
+["Ворзель",50.54524068,30.14320959,"Бучанський","s"],["Вишневе",50.38625104,30.36581354,"Бучанський","c"],
+["Крюківщина",50.36982722,30.36855771,"Бучанський","v"],["Гостомель",50.57875256,30.26001532,"Бучанський","s"],
+["Ірпінь",50.51146447,30.23870831,"Бучанський","c"],["Коцюбинське",50.48938317,30.33598857,"Бучанський","s"],
+["Макарів",50.45270027,29.80411933,"Бучанський","s"],["Кодра",50.59215781,29.55805109,"Бучанський","s"],
+["Немішаєве",50.56289237,30.09216235,"Бучанський","s"],["Клавдієво-Тарасове",50.58068682,30.0072432,"Бучанський","s"],
+["Пісківка",50.6945919,29.59406433,"Бучанський","s"],["Вишгород",50.58786993,30.5017729,"Вишгородський","c"],
+["Димер",50.78567437,30.30495006,"Вишгородський","s"],["Іванків",50.93968266,29.89113118,"Вишгородський","s"],
+["Красятичі",51.08002951,29.62136874,"Вишгородський","s"],["Славутич",51.52103146,30.75931254,"Вишгородський","c"],
+["Богуслав",49.5464611,30.8713407,"Обухівський","c"],["Васильків",50.18442314,30.31563006,"Обухівський","c"],
+["Кагарлик",49.8642776,30.81538338,"Обухівський","c"],["Козин",50.20818444,30.66328622,"Обухівський","s"],
+["Миронівка",49.66192468,30.98131947,"Обухівський","c"],["Обухів",50.11393672,30.62464616,"Обухівський","c"],
+["Ржищів",49.97019938,31.04991003,"Обухівський","c"],["Українка",50.1387578,30.73689237,"Обухівський","c"],
+["Трипілля",50.11958266,30.77209358,"Обухівський","v"],["Хотів",50.32794438,30.46678319,"Обухівський","v"],
+["Боярка",50.33615993,30.28336111,"Фастівський","c"],["Гатне",50.36108756,30.4140205,"Фастівський","v"],
+["Віта-Поштова",50.31177943,30.37364848,"Фастівський","v"],["Глеваха",50.26833216,30.32663586,"Фастівський","s"],
+["Калинівка",50.22573515,30.23184574,"Фастівський","s"],["Кожанка",49.9681956,29.76302798,"Фастівський","s"],
+["Фастів",50.07670738,29.92340123,"Фастівський","c"],["Борова",50.173,30.104,"Фастівський","v"],
+["Чабани",50.33951508,30.42100442,"Фастівський","s"],["Київ",50.4501,30.5234,"Київ","c"],
+["Наливайківка",50.485,29.719,"Київщина","v"],["Катюжанка",50.806,30.138,"Київщина","v"],
+["Понорниця",51.723,32.846,"Чернігівщина","v"],["Носівка",50.932,31.583,"Чернігівщина","s"],
+["Семенівка",49.595,33.180,"Полтавщина","v"],["Сосниця",51.531,32.500,"Чернігівщина","s"],
+["Кіпті",51.055,31.153,"Чернігівщина","v"],["Новгород-Сіверський",52.006,33.262,"Чернігівщина","c"],
+["Теличка",50.400,30.570,"Київ","district"],["Нижні Сади",50.380,30.550,"Київ","district"],
+["Віта-Литовська",50.300,30.550,"Київ","district"],["Конча-Заспа",50.301,30.577,"Київ","district"],
+["ДВРЗ",50.440,30.650,"Київ","district"],["Березняки",50.430,30.610,"Київ","district"],
+["Південний міст",50.390,30.590,"Київ","district"],["Борщагівка",50.430,30.380,"Київ","district"],
+["Пирогів",50.350,30.550,"Київ","district"],["Лісники",50.300,30.550,"Київ","v"],
+["Нова Забудова",50.400,30.570,"Київ","district"],["Погреби",50.550,30.550,"Київ","district"],
+["Троєщина",50.510,30.600,"Київ","district"],["Бортничі",50.380,30.700,"Київ","district"],
+["Лук'янівка",50.460,30.480,"Київ","district"],["Куренівка",50.490,30.450,"Київ","district"],
+["Виноградар",50.510,30.420,"Київ","district"],["Голосіївський ліс",50.380,30.500,"Київ","district"],
+["Феофанія",50.350,30.480,"Київ","district"],["Мишоловка",50.370,30.520,"Київ","district"],
+["Харківський масив",50.420,30.650,"Київ","district"],["Рембаза",50.420,30.550,"Київ","district"],
+["Дарниця",50.440,30.630,"Київ","district"],["Жуляни",50.402,30.450,"Київ","district"],
+["Видубичі",50.420,30.560,"Київ","district"],["Осокорки",50.400,30.620,"Київ","district"],
+["Позняки",50.410,30.630,"Київ","district"],["Русанівські Сади",50.450,30.600,"Київ","district"],
+["Паньківщина",50.440,30.500,"Київ","district"],["Бусова Гора",50.400,30.550,"Київ","district"],
+["Євбаз",50.450,30.500,"Київ","district"],["Пуща-Водиця",50.540,30.350,"Київ","district"],
+["Лебедівка",50.550,30.500,"Київщина","v"],["ТЕЦ-5",50.393,30.569,"Київ","infra"],
+["ТЕЦ-6",50.530,30.660,"Київ","infra"],
+["Троєщина",50.515,30.601,"Київ","district"],
+["Лісовий масив",50.478,30.631,"Київ","district"],
+["Воскресенка / Рембаза / Промвузол",50.470,30.595,"Київ","district"],
+["Харківський масив",50.403,30.655,"Київ","district"],
+["Дарницька ТЕЦ",50.448,30.643,"Київ","infra"],
+["Парк Кіото",50.465,30.639,"Київ","district"],
+["Озеро Алмазне",50.510,30.645,"Київ","district"],
+["Лісове кладовище",50.499,30.634,"Київ","district"],
+["Залізничне шосе",50.407,30.567,"Київ","district"],
+["Мінський масив",50.519,30.462,"Київ","district"],
+["Оболонь",50.506,30.499,"Київ","district"],
+["Русанівські Сади",50.474,30.578,"Київ","district"],
+["Silver Breeze",50.429,30.595,"Київ","district"],
+["Русанівка",50.439,30.598,"Київ","district"],
+["Лівобережний масив",50.448,30.597,"Київ","district"],
+["Березняки",50.429,30.606,"Київ","district"],
+["Дарницька площа",50.442,30.626,"Київ","district"],
+["Даринок",50.460,30.644,"Київ","district"],
+["Метро Лісова",50.464,30.645,"Київ","district"],
+["Гідропарк",50.444,30.577,"Київ","district"],
+["Відрадний",50.431,30.422,"Київ","district"],
+["Жуляни",50.402,30.450,"Київ","district"],
+["Пирогів",50.350,30.550,"Київ","district"],
+["Видубичі",50.420,30.560,"Київ","district"],
+["Осокорки",50.400,30.620,"Київ","district"],
+["Бусова Гора",50.400,30.550,"Київ","district"],
+["Паньківщина",50.440,30.500,"Київ","district"],
+["Євбаз",50.450,30.500,"Київ","district"],
+["Лук'янівка",50.460,30.480,"Київ","district"],
+["Куренівка",50.490,30.450,"Київ","district"],
+["Пріорка",50.505,30.452,"Київ","district"],
+["Виноградар",50.510,30.420,"Київ","district"],
+["Осокорки",50.400,30.620,"Київ","district"],
+["Бортничі",50.380,30.700,"Київ","district"],
+["Вишневе",50.387,30.358,"Київщина","c"],
+["Мишоловка",50.370,30.520,"Київ","district"],
+["Теличка",50.400,30.570,"Київ","district"],
+["ТЕЦ-5",50.393,30.569,"Київ","infra"],
+["Нижні Сади",50.380,30.550,"Київ","district"],
+["Віта-Литовська",50.300,30.550,"Київ","district"],
+["Конча-Заспа",50.301,30.577,"Київ","district"],
+["Чабани",50.340,30.430,"Київщина","s"],
+["Голосіївський ліс",50.380,30.500,"Київ","district"],
+["Південний міст",50.390,30.590,"Київ","district"],
+["Харківський масив",50.403,30.655,"Київ","district"],
+["Рембаза",50.420,30.550,"Київ","district"],
+["ДВРЗ",50.440,30.650,"Київ","district"],
+["Березняки",50.429,30.606,"Київ","district"],
+["Дарниця",50.440,30.630,"Київ","district"],
+["ТЕЦ-6",50.530,30.660,"Київ","infra"],
+["Чоколівка",50.425,30.447,"Київ","district"],
+["Нивки",50.459,30.406,"Київ","district"],
+["Поділ",50.469,30.517,"Київ","district"],
+["Липки",50.444,30.534,"Київ","district"],
+["Печерськ",50.421,30.549,"Київ","district"],
+["Теремки",50.367,30.454,"Київ","district"],
+["Голосіїв",50.327,30.567,"Київ","district"],
+["Феофанія",50.350,30.480,"Київ","district"],
+["Хотів",50.330,30.472,"Київщина","v"],
+["Боярка",50.319,30.297,"Київщина","c"],
+["Глеваха",50.274,30.327,"Київщина","s"],
+["Калинівка",50.559,30.821,"Київщина","s"],
+["Чайки",50.430,30.300,"Київщина","v"],
+["Білогородка",50.394,30.231,"Київщина","v"],
+["Лебедівка",50.550,30.500,"Київщина","v"],
+["Козелець",50.900,31.117,"Чернігівщина","s"],
+["Ворзель",50.550,30.150,"Київщина","s"],
+["Козин",50.206,30.659,"Київщина","s"],
+["Трипілля",50.118,30.781,"Київщина","v"],
+["Макарів",50.460,29.815,"Київщина","s"],
+["Переяслав",50.065,31.445,"Київщина","c"]
+];
+window.KYIV_OBLAST_SETTLEMENTS=KYIV_OBLAST_SETTLEMENTS;
+</script>
+</body>
+</html>
